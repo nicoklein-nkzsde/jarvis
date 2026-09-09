@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Jarvis</title>
+<meta name="description" content="Einsprechen, sortieren lassen – der Eingang für Notizen, Aufgaben und Termine.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Jarvis">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#000000;
+  --card:#1c1c1e; --card2:#2c2c2e;
+  --fill:rgba(120,120,128,.20);
+  --sep:rgba(84,84,88,.62);
+  --label:#ffffff;
+  --label2:#98989f;
+  --label3:#636366;
+  --green:#30d158; --orange:#ff9f0a; --red:#ff453a; --blue:#0a84ff; --purple:#bf5af2;
+  --ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
+  --brand:'Poppins',-apple-system,sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;}
+html,body{margin:0; padding:0; background:var(--bg); color:var(--label);
+  font-family:var(--ui); font-size:17px; touch-action:manipulation;}
+body{-webkit-font-smoothing:antialiased; min-height:100vh;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));}
+body::before{
+  content:''; position:fixed; inset:-25%; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(42% 36% at 12% 8%,  rgba(10,132,255,.15),  transparent 62%),
+    radial-gradient(46% 40% at 88% 12%, rgba(191,90,242,.11), transparent 62%),
+    radial-gradient(52% 46% at 50% 98%, rgba(48,209,88,.08), transparent 62%);
+  filter:blur(48px);
+  animation:aurora 26s ease-in-out infinite alternate;
+}
+@keyframes aurora{0%{transform:translate3d(0,0,0) scale(1);}100%{transform:translate3d(4%,-3%,0) scale(1.1);}}
+.glass{
+  position:relative;
+  background:rgba(28,28,30,.52);
+  backdrop-filter:blur(24px) saturate(170%); -webkit-backdrop-filter:blur(24px) saturate(170%);
+  border-radius:18px;
+  box-shadow:0 12px 32px rgba(0,0,0,.38), inset 0 .5px 0 rgba(255,255,255,.10);
+}
+.glass::before{
+  content:''; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+  background:linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.02) 45%, rgba(255,255,255,.10));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+}
+header.app{
+  position:sticky; top:0; z-index:20;
+  background:linear-gradient(180deg, rgba(8,8,10,.86), rgba(8,8,10,.62));
+  backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 8px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:.5px solid rgba(255,255,255,.10);
+  -webkit-user-select:none; user-select:none;
+}
+.logo-sm{font-family:var(--brand); font-weight:800; font-size:21px; letter-spacing:1.5px; line-height:1;}
+.logo-sm small{display:block; font-family:var(--ui); font-weight:500; font-size:9px; color:var(--label2); letter-spacing:.3px; margin-top:2px;}
+.icon-btn{
+  width:36px; height:36px; border-radius:50%; border:.5px solid rgba(255,255,255,.14);
+  background:rgba(120,120,128,.18); color:var(--label); font-size:17px;
+  display:grid; place-items:center; cursor:pointer;
+}
+main{padding:16px; max-width:640px; margin:0 auto;}
+.view{display:none;} .view.on{display:block;}
+
+/* ---------- Aufnehmen ---------- */
+.mic-wrap{display:grid; place-items:center; padding:22px 0 6px; position:relative;}
+#mic{
+  width:172px; height:172px; border-radius:50%; border:none; cursor:pointer;
+  background:radial-gradient(120% 120% at 30% 20%, #2b7cff, #0a84ff 45%, #0a5bd6);
+  box-shadow:0 18px 44px rgba(10,132,255,.36), inset 0 1px 0 rgba(255,255,255,.28);
+  color:#fff; font-size:60px; display:grid; place-items:center; position:relative; z-index:2;
+  transition:transform .12s ease;
+}
+#mic:active{transform:scale(.96);}
+#mic.rec{background:radial-gradient(120% 120% at 30% 20%, #ff6b6b, #ff453a 45%, #d62d22);
+  box-shadow:0 18px 44px rgba(255,69,58,.38), inset 0 1px 0 rgba(255,255,255,.28);}
+.ring{position:absolute; width:172px; height:172px; border-radius:50%; border:2px solid rgba(255,69,58,.5); opacity:0; z-index:1;}
+#mic.rec ~ .ring{animation:pulse 2.2s ease-out infinite;}
+#mic.rec ~ .ring.b{animation-delay:1.1s;}
+@keyframes pulse{0%{transform:scale(1); opacity:.7;} 100%{transform:scale(1.9); opacity:0;}}
+.timer{text-align:center; font-family:var(--brand); font-weight:600; font-variant-numeric:tabular-nums; font-size:15px; color:var(--label2); margin-top:14px; letter-spacing:.5px;}
+.hint{color:var(--label3); font-size:13px; text-align:center; margin:6px 0 0; line-height:1.45;}
+
+.pad{padding:14px; margin-top:16px;}
+#text{
+  width:100%; min-height:132px; resize:vertical; border:none; outline:none;
+  background:transparent; color:var(--label); font-family:var(--ui); font-size:16px; line-height:1.5;
+}
+#text::placeholder{color:var(--label3);}
+.interim{color:var(--label3); font-style:italic;}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+.chip{
+  padding:7px 13px; border-radius:999px; font-size:13px; font-weight:500;
+  background:rgba(120,120,128,.20); color:var(--label2); border:.5px solid rgba(255,255,255,.08);
+  cursor:pointer; -webkit-user-select:none; user-select:none;
+}
+.chip.on{background:rgba(10,132,255,.28); border-color:rgba(10,132,255,.5); color:#fff;}
+.chip.on.pj{background:rgba(191,90,242,.26); border-color:rgba(191,90,242,.5);}
+.lbl{font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--label3); margin:16px 0 0;}
+.btn{
+  width:100%; margin-top:16px; padding:15px; border-radius:14px; border:none; cursor:pointer;
+  font-family:var(--brand); font-weight:600; font-size:16px; color:#fff;
+  background:linear-gradient(180deg,#34d15f,#28a94c);
+  box-shadow:0 10px 24px rgba(48,209,88,.28);
+}
+.btn:disabled{opacity:.4; box-shadow:none;}
+.btn.sec{background:rgba(120,120,128,.22); box-shadow:none; color:var(--label);}
+.btn.mini{width:auto; padding:10px 16px; font-size:14px; margin-top:0;}
+
+/* ---------- Inbox ---------- */
+.day{font-family:var(--brand); font-weight:600; font-size:13px; color:var(--label2); margin:20px 0 8px; letter-spacing:.4px;}
+.entry{padding:13px 14px; margin-bottom:10px; cursor:pointer;}
+.entry .meta{display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;}
+.badge{font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; padding:3px 8px; border-radius:6px;}
+.b-auto{background:rgba(120,120,128,.3); color:var(--label2);}
+.b-aufgabe{background:rgba(48,209,88,.2); color:var(--green);}
+.b-termin{background:rgba(255,159,10,.2); color:var(--orange);}
+.b-notiz{background:rgba(10,132,255,.2); color:var(--blue);}
+.b-idee{background:rgba(191,90,242,.2); color:var(--purple);}
+.pj-tag{font-size:11px; color:var(--purple); font-weight:600;}
+.time{font-size:11px; color:var(--label3); margin-left:auto; font-variant-numeric:tabular-nums;}
+.entry p{margin:0; font-size:15px; line-height:1.45; color:var(--label);}
+.entry .dot{width:7px; height:7px; border-radius:50%; background:var(--orange); display:inline-block;}
+.entry .dot.ok{background:var(--green);}
+.empty{text-align:center; color:var(--label3); font-size:14px; padding:44px 20px; line-height:1.5;}
+
+/* ---------- Tabs ---------- */
+nav.tabs{
+  position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex;
+  background:linear-gradient(0deg, rgba(8,8,10,.92), rgba(8,8,10,.7));
+  backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px);
+  border-top:.5px solid rgba(255,255,255,.10);
+  padding:8px 0 calc(6px + env(safe-area-inset-bottom));
+  -webkit-user-select:none; user-select:none;
+}
+nav.tabs button{
+  flex:1; background:none; border:none; color:var(--label3); font-family:var(--ui);
+  font-size:10px; font-weight:500; display:grid; gap:3px; justify-items:center; cursor:pointer; padding:0;
+}
+nav.tabs button i{font-size:21px; font-style:normal;}
+nav.tabs button.on{color:var(--blue);}
+.count{background:var(--red); color:#fff; font-size:10px; font-weight:700; border-radius:999px; padding:1px 6px; position:absolute; transform:translate(16px,-4px);}
+
+/* ---------- Sheet ---------- */
+.sheet-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:40; opacity:0; pointer-events:none; transition:opacity .22s;}
+.sheet-bg.on{opacity:1; pointer-events:auto;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:41; max-height:88vh; overflow-y:auto;
+  background:rgba(22,22,24,.96); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px);
+  border-radius:22px 22px 0 0; border-top:.5px solid rgba(255,255,255,.14);
+  padding:8px 16px calc(24px + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform .28s cubic-bezier(.32,.72,0,1);
+}
+.sheet.on{transform:translateY(0);}
+.grip{width:38px; height:5px; border-radius:3px; background:rgba(255,255,255,.22); margin:6px auto 14px;}
+.sheet h2{font-family:var(--brand); font-weight:600; font-size:19px; margin:0 0 4px;}
+.sheet .sub{color:var(--label2); font-size:13px; margin:0 0 18px; line-height:1.5;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--label3); margin-bottom:6px;}
+.field input, .field textarea{
+  width:100%; padding:13px; border-radius:12px; border:.5px solid rgba(255,255,255,.12);
+  background:rgba(120,120,128,.16); color:var(--label); font-family:var(--ui); font-size:16px; outline:none;
+}
+.field textarea{min-height:120px; resize:vertical; line-height:1.5;}
+.row2{display:flex; gap:10px;} .row2>*{flex:1;}
+.note{font-size:12px; color:var(--label3); line-height:1.5; margin:10px 0 0;}
+.toast{
+  position:fixed; left:50%; bottom:calc(80px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(14px);
+  background:rgba(44,44,46,.96); color:#fff; font-size:14px; padding:11px 18px; border-radius:12px; z-index:60;
+  opacity:0; pointer-events:none; transition:all .25s; max-width:88vw; text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+.toast.on{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="logo-sm">JARVIS<small>NKZS · Eingang</small></div>
+  <button class="icon-btn" id="btn-set" aria-label="Einstellungen">⚙</button>
+</header>
+
+<main>
+  <!-- ============ Aufnehmen ============ -->
+  <section class="view on" id="v-rec">
+    <div class="mic-wrap">
+      <button id="mic" aria-label="Aufnahme starten">🎙</button>
+      <div class="ring a"></div><div class="ring b"></div>
+    </div>
+    <div class="timer" id="timer">Antippen und sprechen</div>
+    <p class="hint" id="hint">Rede so lang und wirr du willst. Sortiert wird später.</p>
+
+    <div class="glass pad">
+      <textarea id="text" placeholder="… oder hier tippen. Auf dem iPhone geht auch das Mikrofon der Tastatur."></textarea>
+      <div class="lbl">Art</div>
+      <div class="chips" id="kinds"></div>
+      <div class="lbl">Projekt</div>
+      <div class="chips" id="pjs"></div>
+      <button class="btn" id="save" disabled>In die Inbox</button>
+    </div>
+  </section>
+
+  <!-- ============ Inbox ============ -->
+  <section class="view" id="v-inbox">
+    <div id="list"></div>
+    <div class="empty" id="empty">Noch nichts drin.<br>Sprich etwas ein, dann steht es hier.</div>
+    <div class="row2" id="inbox-actions" style="margin-top:18px; display:none;">
+      <button class="btn sec mini" id="btn-copy" style="width:100%">Als Markdown kopieren</button>
+      <button class="btn mini" id="btn-sync" style="width:100%">Sync</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button class="on" data-v="v-rec"><i>🎙</i>Aufnehmen</button>
+  <button data-v="v-inbox"><i>📥</i>Inbox<span class="count" id="badge" style="display:none">0</span></button>
+</nav>
+
+<div class="sheet-bg" id="bg"></div>
+
+<!-- Einstellungen -->
+<div class="sheet" id="sh-set">
+  <div class="grip"></div>
+  <h2>Einstellungen</h2>
+  <p class="sub">Sync schiebt jeden Eintrag als eigene Markdown-Datei in ein privates GitHub-Repo. Von dort holt Claude sie in den Vault. Ohne Sync bleibt alles auf diesem Gerät und du kopierst es per Hand.</p>
+  <div class="row2">
+    <div class="field"><label>GitHub-Konto</label><input id="s-owner" placeholder="nicoklein-nkzsde" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label>Repo</label><input id="s-repo" placeholder="jarvis-inbox" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label>Branch</label><input id="s-branch" placeholder="main" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label>Ordner</label><input id="s-path" placeholder="inbox" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+  </div>
+  <div class="field"><label>Token (fine-grained, nur dieses Repo, Contents: Read and write)</label><input id="s-token" type="password" placeholder="github_pat_…" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+  <div class="row2">
+    <button class="btn sec mini" id="btn-test" style="width:100%">Verbindung testen</button>
+    <button class="btn mini" id="btn-save-set" style="width:100%">Speichern</button>
+  </div>
+  <p class="note">Der Token liegt nur im Speicher dieses Browsers, nie im Code der App. Wenn du das iPhone verlierst, Token auf GitHub widerrufen.</p>
+  <button class="btn sec" id="btn-clear-synced">Synchronisierte Einträge löschen</button>
+</div>
+
+<!-- Eintrag bearbeiten -->
+<div class="sheet" id="sh-edit">
+  <div class="grip"></div>
+  <h2>Eintrag</h2>
+  <p class="sub" id="e-when"></p>
+  <div class="field"><textarea id="e-text"></textarea></div>
+  <div class="lbl">Art</div>
+  <div class="chips" id="e-kinds"></div>
+  <div class="lbl">Projekt</div>
+  <div class="chips" id="e-pjs"></div>
+  <button class="btn" id="btn-e-save">Speichern</button>
+  <button class="btn sec" id="btn-e-del" style="color:var(--red)">Löschen</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= Daten ================= */
+const KINDS = [
+  {id:'auto',    label:'Claude entscheidet'},
+  {id:'aufgabe', label:'Aufgabe'},
+  {id:'termin',  label:'Termin'},
+  {id:'notiz',   label:'Notiz'},
+  {id:'idee',    label:'Idee'}
+];
+const PROJECTS = ['—','NKZS Website','NKZS Rechnungen App','Autohaus Dilltal','OHRYBABY','Dream Garage','Akquise','Jarvis','Privat'];
+
+const LS_E = 'jarvis.entries.v1', LS_S = 'jarvis.settings.v1';
+let entries = [], settings = {owner:'',repo:'',branch:'main',path:'inbox',token:''};
+let draft = {kind:'auto', project:'—'};
+let editing = null, editDraft = {kind:'auto', project:'—'};
+
+function load(){
+  try{ entries = JSON.parse(localStorage.getItem(LS_E) || '[]'); }catch(e){ entries = []; }
+  try{ Object.assign(settings, JSON.parse(localStorage.getItem(LS_S) || '{}')); }catch(e){}
+}
+function saveEntries(){ try{ localStorage.setItem(LS_E, JSON.stringify(entries)); }catch(e){ toast('Speicher voll'); } }
+function saveSettings(){ try{ localStorage.setItem(LS_S, JSON.stringify(settings)); }catch(e){} }
+
+/* ================= Helfer ================= */
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('on'), 2600);
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function isoLocal(d){
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? '+' : '-', a = Math.abs(off);
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())
+    + sign + pad(Math.floor(a/60)) + ':' + pad(a%60);
+}
+function dayLabel(ts){
+  const d = new Date(ts), t = new Date(), y = new Date(Date.now()-864e5);
+  const same = (a,b) => a.toDateString() === b.toDateString();
+  if(same(d,t)) return 'Heute';
+  if(same(d,y)) return 'Gestern';
+  return d.toLocaleDateString('de-DE',{weekday:'long', day:'numeric', month:'long'});
+}
+function kindLabel(id){ const k = KINDS.find(k=>k.id===id); return k ? k.label : id; }
+
+/* ================= Chips ================= */
+function renderChips(el, items, current, onPick, cls){
+  el.innerHTML = '';
+  items.forEach(it => {
+    const id = typeof it === 'string' ? it : it.id;
+    const label = typeof it === 'string' ? it : it.label;
+    const b = document.createElement('div');
+    b.className = 'chip' + (id === current ? ' on' + (cls ? ' ' + cls : '') : '');
+    b.textContent = label;
+    b.onclick = () => onPick(id);
+    el.appendChild(b);
+  });
+}
+function drawDraftChips(){
+  renderChips($('#kinds'), KINDS, draft.kind, v => { draft.kind = v; drawDraftChips(); });
+  renderChips($('#pjs'), PROJECTS, draft.project, v => { draft.project = v; drawDraftChips(); }, 'pj');
+}
+function drawEditChips(){
+  renderChips($('#e-kinds'), KINDS, editDraft.kind, v => { editDraft.kind = v; drawEditChips(); });
+  renderChips($('#e-pjs'), PROJECTS, editDraft.project, v => { editDraft.project = v; drawEditChips(); }, 'pj');
+}
+
+/* ================= Spracherkennung ================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, recording = false, finalText = '', t0 = 0, tick = null;
+
+function setTimerLabel(){
+  if(!recording){ return; }
+  const s = Math.floor((Date.now() - t0) / 1000);
+  $('#timer').textContent = '● ' + pad(Math.floor(s/60)) + ':' + pad(s%60) + ' – zum Stoppen antippen';
+}
+function startRec(){
+  if(!SR){ toast('Diktat: Mikrofon auf der Tastatur nutzen'); $('#text').focus(); return; }
+  finalText = $('#text').value ? $('#text').value.trim() + ' ' : '';
+  recording = true;
+  $('#mic').classList.add('rec'); $('#mic').textContent = '■';
+  t0 = Date.now(); setTimerLabel(); tick = setInterval(setTimerLabel, 500);
+  $('#hint').textContent = 'Ich höre zu. Pausen sind kein Problem.';
+  spin();
+}
+function spin(){
+  rec = new SR();
+  rec.lang = 'de-DE'; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      if(r.isFinal){ finalText += r[0].transcript.trim() + ' '; }
+      else { interim += r[0].transcript; }
+    }
+    $('#text').value = (finalText + interim).replace(/\s+/g,' ').trimStart();
+    refreshSave();
+  };
+  rec.onerror = e => {
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      stopRec(); $('#hint').textContent = 'Mikrofon ist blockiert. In den Safari-Einstellungen erlauben.';
+    }
+  };
+  rec.onend = () => { if(recording){ setTimeout(() => { if(recording) spin(); }, 120); } };
+  try{ rec.start(); }catch(e){}
+}
+function stopRec(){
+  recording = false; clearInterval(tick);
+  if(rec){ try{ rec.stop(); }catch(e){} rec = null; }
+  $('#mic').classList.remove('rec'); $('#mic').textContent = '🎙';
+  $('#timer').textContent = 'Antippen und sprechen';
+  $('#hint').textContent = 'Text noch anpassen, dann in die Inbox.';
+  refreshSave();
+}
+$('#mic').onclick = () => recording ? stopRec() : startRec();
+
+function refreshSave(){ $('#save').disabled = $('#text').value.trim().length === 0; }
+$('#text').oninput = refreshSave;
+
+/* ================= Speichern ================= */
+$('#save').onclick = () => {
+  const text = $('#text').value.trim();
+  if(!text) return;
+  if(recording) stopRec();
+  entries.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    ts: new Date().toISOString(),
+    text, kind: draft.kind, project: draft.project, synced: false
+  });
+  saveEntries();
+  $('#text').value = ''; draft = {kind:'auto', project:'—'};
+  drawDraftChips(); refreshSave(); drawList();
+  $('#hint').textContent = 'Drin. Nächster Gedanke?';
+  toast('Gespeichert');
+};
+
+/* ================= Liste ================= */
+function drawList(){
+  const open = entries.filter(e => !e.synced).length;
+  const badge = $('#badge');
+  badge.style.display = open ? 'inline-block' : 'none';
+  badge.textContent = open;
+  $('#empty').style.display = entries.length ? 'none' : 'block';
+  $('#inbox-actions').style.display = entries.length ? 'flex' : 'none';
+
+  const list = $('#list'); list.innerHTML = '';
+  let lastDay = '';
+  entries.forEach(e => {
+    const d = dayLabel(e.ts);
+    if(d !== lastDay){
+      const h = document.createElement('div'); h.className = 'day'; h.textContent = d;
+      list.appendChild(h); lastDay = d;
+    }
+    const time = new Date(e.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    const card = document.createElement('div');
+    card.className = 'entry glass';
+    card.innerHTML =
+      '<div class="meta">' +
+        '<span class="dot' + (e.synced ? ' ok' : '') + '"></span>' +
+        '<span class="badge b-' + e.kind + '">' + esc(e.kind === 'auto' ? 'auto' : kindLabel(e.kind)) + '</span>' +
+        (e.project && e.project !== '—' ? '<span class="pj-tag">' + esc(e.project) + '</span>' : '') +
+        '<span class="time">' + time + '</span>' +
+      '</div><p>' + esc(e.text) + '</p>';
+    card.onclick = () => openEdit(e.id);
+    list.appendChild(card);
+  });
+}
+
+/* ================= Bearbeiten ================= */
+function openEdit(id){
+  const e = entries.find(x => x.id === id); if(!e) return;
+  editing = id; editDraft = {kind:e.kind, project:e.project};
+  $('#e-text').value = e.text;
+  $('#e-when').textContent = new Date(e.ts).toLocaleString('de-DE') + (e.synced ? ' · schon synchronisiert' : ' · noch nicht synchronisiert');
+  drawEditChips(); openSheet('#sh-edit');
+}
+$('#btn-e-save').onclick = () => {
+  const e = entries.find(x => x.id === editing); if(!e) return;
+  const t = $('#e-text').value.trim();
+  if(!t){ toast('Text ist leer'); return; }
+  if(t !== e.text || e.kind !== editDraft.kind || e.project !== editDraft.project) e.synced = false;
+  e.text = t; e.kind = editDraft.kind; e.project = editDraft.project;
+  saveEntries(); drawList(); closeSheets(); toast('Aktualisiert');
+};
+$('#btn-e-del').onclick = () => {
+  entries = entries.filter(x => x.id !== editing);
+  saveEntries(); drawList(); closeSheets(); toast('Gelöscht');
+};
+
+/* ================= Markdown ================= */
+function entryMd(e){
+  const d = new Date(e.ts);
+  return '---\n'
+    + 'erfasst: ' + isoLocal(d) + '\n'
+    + 'art: ' + e.kind + '\n'
+    + 'projekt: ' + (e.project === '—' ? '' : e.project) + '\n'
+    + 'quelle: jarvis-pwa\n'
+    + 'status: neu\n'
+    + '---\n\n' + e.text + '\n';
+}
+function allMd(){
+  return entries.slice().reverse().map(e => {
+    const d = new Date(e.ts);
+    return '## ' + d.toLocaleString('de-DE') + ' · ' + (e.kind === 'auto' ? 'auto' : kindLabel(e.kind))
+      + (e.project !== '—' ? ' · [[' + e.project + ']]' : '') + '\n\n' + e.text + '\n';
+  }).join('\n');
+}
+$('#btn-copy').onclick = async () => {
+  const md = allMd();
+  try{ await navigator.clipboard.writeText(md); toast('Markdown kopiert'); }
+  catch(err){
+    if(navigator.share){ try{ await navigator.share({text:md}); return; }catch(e2){} }
+    toast('Kopieren nicht erlaubt');
+  }
+};
+
+/* ================= GitHub-Sync ================= */
+function b64(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = ''; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function ghReady(){ return settings.owner && settings.repo && settings.token; }
+function fileName(e){
+  const d = new Date(e.ts);
+  return d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '-' + e.id + '.md';
+}
+async function ghPut(e){
+  const path = (settings.path || 'inbox').replace(/^\/|\/$/g,'') + '/' + fileName(e);
+  const url = 'https://api.github.com/repos/' + settings.owner + '/' + settings.repo + '/contents/' + path;
+  const res = await fetch(url, {
+    method:'PUT',
+    headers:{'Authorization':'Bearer ' + settings.token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json'},
+    body: JSON.stringify({message:'jarvis: ' + fileName(e), content: b64(entryMd(e)), branch: settings.branch || 'main'})
+  });
+  if(res.status === 422 || res.status === 409) return true;  /* liegt schon da */
+  if(!res.ok) throw new Error(res.status + ' ' + (await res.text()).slice(0,120));
+  return true;
+}
+$('#btn-sync').onclick = async () => {
+  if(!ghReady()){ toast('Erst GitHub in den Einstellungen hinterlegen'); openSheet('#sh-set'); return; }
+  const todo = entries.filter(e => !e.synced);
+  if(!todo.length){ toast('Alles schon oben'); return; }
+  const btn = $('#btn-sync'); btn.disabled = true; btn.textContent = 'Sync …';
+  let ok = 0, fail = 0;
+  for(const e of todo){
+    try{ await ghPut(e); e.synced = true; ok++; }
+    catch(err){ fail++; console.error(err); }
+  }
+  saveEntries(); drawList();
+  btn.disabled = false; btn.textContent = 'Sync';
+  toast(fail ? (ok + ' hoch, ' + fail + ' fehlgeschlagen') : (ok + ' übertragen'));
+};
+$('#btn-test').onclick = async () => {
+  readSettingsForm();
+  if(!ghReady()){ toast('Konto, Repo und Token fehlen'); return; }
+  try{
+    const res = await fetch('https://api.github.com/repos/' + settings.owner + '/' + settings.repo,
+      {headers:{'Authorization':'Bearer ' + settings.token, 'Accept':'application/vnd.github+json'}});
+    toast(res.ok ? 'Verbindung steht' : 'Fehler ' + res.status);
+  }catch(e){ toast('Kein Netz'); }
+};
+$('#btn-clear-synced').onclick = () => {
+  const before = entries.length;
+  entries = entries.filter(e => !e.synced);
+  saveEntries(); drawList();
+  toast((before - entries.length) + ' aufgeräumt');
+};
+
+/* ================= Einstellungen ================= */
+function fillSettingsForm(){
+  $('#s-owner').value = settings.owner || ''; $('#s-repo').value = settings.repo || '';
+  $('#s-branch').value = settings.branch || 'main'; $('#s-path').value = settings.path || 'inbox';
+  $('#s-token').value = settings.token || '';
+}
+function readSettingsForm(){
+  settings.owner = $('#s-owner').value.trim(); settings.repo = $('#s-repo').value.trim();
+  settings.branch = $('#s-branch').value.trim() || 'main'; settings.path = $('#s-path').value.trim() || 'inbox';
+  settings.token = $('#s-token').value.trim();
+}
+$('#btn-save-set').onclick = () => { readSettingsForm(); saveSettings(); closeSheets(); toast('Gespeichert'); };
+$('#btn-set').onclick = () => { fillSettingsForm(); openSheet('#sh-set'); };
+
+/* ================= Sheets & Tabs ================= */
+function openSheet(sel){ $('#bg').classList.add('on'); $(sel).classList.add('on'); }
+function closeSheets(){ $('#bg').classList.remove('on'); document.querySelectorAll('.sheet').forEach(s => s.classList.remove('on')); }
+$('#bg').onclick = closeSheets;
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav.tabs button').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  b.classList.add('on'); $('#' + b.dataset.v).classList.add('on');
+  window.scrollTo(0,0);
+});
+
+/* ================= Start ================= */
+load(); drawDraftChips(); drawList(); refreshSave();
+if(!SR){ $('#hint').textContent = 'Dieser Browser kann kein Live-Diktat. Tippen oder das Mikrofon der iPhone-Tastatur nutzen.'; }
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
